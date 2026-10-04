@@ -1,0 +1,37 @@
+name: Threads 自動投稿
+
+on:
+  schedule:
+    # 日本時間 7時・12時・20時台に15分おき（GitHubはUTC表記のため 22・3・11時）
+    # 予定時刻を過ぎた承認済みの投稿だけが投稿される
+    - cron: "*/15 22,3,11 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: threads-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 投稿
+        env:
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          IMAGE_BRANCH: ${{ github.ref_name }}
+        run: python3 scripts/threads_post.py
+
+      - name: 投稿結果を記録
+        if: always()
+        run: |
+          if git diff --quiet posts.json; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add posts.json
+          git commit -m "投稿結果を記録"
+          for i in 1 2 3; do git pull --rebase && git push && break; sleep 5; done

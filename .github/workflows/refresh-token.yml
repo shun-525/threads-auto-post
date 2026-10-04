@@ -1,0 +1,35 @@
+name: Threads トークン更新
+
+# 長期トークンは60日で切れるため、毎月1日と15日に延長して Secrets を書き換える。
+# Secrets の書き換えには GH_PAT（このリポジトリの Secrets を編集できる個人用トークン）が必要。
+
+on:
+  schedule:
+    - cron: "0 0 1,15 * *"
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: トークンを延長して保存
+        env:
+          OLD_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "GH_PAT が未設定のため自動更新できません。README の手順で設定してください。"
+            exit 1
+          fi
+          res=$(curl -sS --get "https://graph.threads.net/refresh_access_token" \
+            --data-urlencode "grant_type=th_refresh_token" \
+            --data-urlencode "access_token=$OLD_TOKEN")
+          new=$(echo "$res" | jq -r '.access_token // empty')
+          if [ -z "$new" ]; then
+            echo "トークンの延長に失敗しました: $(echo "$res" | jq -c '.error // .')"
+            exit 1
+          fi
+          echo "::add-mask::$new"
+          gh secret set THREADS_ACCESS_TOKEN --repo "$REPO" --body "$new"
+          echo "トークンを延長しました（有効期限 約$(( $(echo "$res" | jq -r '.expires_in') / 86400 ))日）"

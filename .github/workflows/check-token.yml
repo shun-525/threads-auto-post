@@ -1,0 +1,14 @@
+name: Threads 接続テスト
+
+# 投稿はせず、トークンが有効か・どのアカウントにつながるかだけを確認する
+on:
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+        run: python3 scripts/threads_post.py --whoami
