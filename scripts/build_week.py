@@ -49,7 +49,13 @@ def prompt(img):
 
 {RULES}
 
-━━ この画像で伝えたいこと ━━
+{spec(img)}
+
+{STYLE}"""
+
+
+def spec(img):
+    return f"""━━ この画像で伝えたいこと ━━
 {img["mechanism"]}
 
 ━━ 描く体の部位と位置関係 ━━
@@ -82,9 +88,65 @@ def prompt(img):
 
 ■ 5. まとめ帯（下部・横いっぱい）
 ・淡い水色の帯に、濃い紺色の太字で「{img["summary"]}」。
-・「{img["summary_em"]}」に黄色の蛍光マーカー。右下に小さな白い光の装飾。
+・「{img["summary_em"]}」に黄色の蛍光マーカー。右下に小さな白い光の装飾。"""
+
+
+GEM_INSTRUCTIONS = f"""あなたは、姿勢改善・ダイエットの専門家（パーソナルトレーナー）のThreads投稿用に、日本語の医療解説インフォグラフィックを作るアシスタントです。
+
+私が画像の内容を送ったら、次のルールとデザインで、横長（16:9）の画像を作成してください。
+複数の内容をまとめて送った場合は、1枚目だけを作って止まり、私が「次」と送ったら次の1枚を作ってください。
+理由：1枚ずつ集中して作るほうが、文字や解剖の間違いが少なくなるためです。
+
+{RULES}
+
+━━ 共通のデザイン ━━
+・上部：濃い青のグラデーションの見出し帯（白い極太ゴシック体、指定した言葉だけ黄色）。
+・中央：左にBEFOREパネル（こげ茶の帯・クリーム色の背景）、右にAFTERパネル（水色の帯・淡い水色の背景）。
+・2つのパネルの間に、両方にまたがる太い青色の右向き矢印。
+・BEFOREは問題の部位を赤、赤い×印、赤い矢印。AFTERは同じ部位を緑、緑のチェック印、青い矢印。
+・BEFOREの右下に、悩んでいる女性の小さな全身イラストと吹き出し。AFTERの右下に、きれいな姿勢の女性の小さな全身イラスト（グレーのタンクトップ、ピンクのレギンス）と緑のチェック。
+・下部：淡い水色のまとめ帯（濃い紺色の太字、指定した部分に黄色の蛍光マーカー、右下に小さな白い光の装飾）。
 
 {STYLE}"""
+
+
+def write_batch(mod):
+    days = {}
+    for item in mod.POSTS:
+        days.setdefault(item["at"][:10], []).append(item)
+    md = [
+        f"# Gemini まとめ依頼（{mod.WEEK}）",
+        "",
+        "## 準備（最初の1回だけ）：Gem を作る",
+        "",
+        "1. Gemini の左メニュー「Gem マネージャー」→「Gem を作成」",
+        "2. 名前：`スレッズ画像メーカー`",
+        "3. 「カスタム指示」に、下の枠の中をすべて貼り付けて保存",
+        "",
+        "```",
+        GEM_INSTRUCTIONS,
+        "```",
+        "",
+        "## 毎回の使い方",
+        "",
+        "1. 作った Gem「スレッズ画像メーカー」を開く",
+        "2. 下の「1日分」の枠をまるごと貼り付けて送信 → 1枚目ができる",
+        "3. 「次」と送る → 2枚目、もう一度「次」→ 3枚目",
+        "4. 1枚できるごとにダウンロードボタンで保存し、`images` フォルダに番号の名前で入れる",
+        "",
+        "※ 直したいところがあれば、「次」の代わりに「〇〇を直して」と送ってください。",
+        "",
+    ]
+    for day, items in days.items():
+        title = when(items[0]["at"]).split("）")[0] + "）"
+        md += ["---", "", f"## {title}　" + " / ".join(f"{i['id']} {i['theme']}" for i in items), "", "```"]
+        md.append(f"次の{len(items)}枚を、1枚ずつ順番に作ってください。まず1枚目だけを作って止まってください。")
+        for n, item in enumerate(items, 1):
+            md += ["", f"■■■■■■■■ {n}枚目（{item['id']}）■■■■■■■■", "", spec(item["img"])]
+        md += ["```", ""]
+    out = ROOT / f"Geminiまとめ依頼_{mod.WEEK}.md"
+    out.write_text("\n".join(md), encoding="utf-8")
+    print(f"{out.name} を作成しました")
 
 
 def when(at):
@@ -148,6 +210,7 @@ def main():
             md += ["**自動で付ける返信**", "", "```", LINE_REPLY, "```", ""]
         md += ["**画像プロンプト**", "", "```", prompt(item["img"]), "```", ""]
 
+    write_batch(mod)
     posts.sort(key=lambda p: p["scheduled_at"])
     POSTS_FILE.write_text(json.dumps(posts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     out = ROOT / f"画像プロンプト_{mod.WEEK}.md"
