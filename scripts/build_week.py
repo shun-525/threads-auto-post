@@ -28,7 +28,9 @@ RULES = """━━ 最も大事なルール（必ず守ってください）━�
    理由：読者は姿勢改善を学びたい一般の方で、間違った位置を覚えると誤ったケアにつながるためです。
 4. 説明ラベルは、各パネルに指定した3つだけにしてください。引き出し線は、必ずラベルの内容と一致する部位を正確に指してください。
 5. 手や前腕など、指示にない体の部位を付け足さないでください。
-   理由：描くものが増えると、体の形が不自然になりやすいためです。"""
+   理由：描くものが増えると、体の形が不自然になりやすいためです。
+6. 視点（「右向き」など）、筋肉の位置の説明、「理由：」の文章は、あなたへの説明です。画像には書かないでください。
+   理由：これまで、説明文がそのまま画像に入ってしまうことがあったためです。"""
 
 STYLE = """━━ スタイル ━━
 ・色は青・水色・クリーム・こげ茶が基調。赤＝問題、緑＝改善、黄色＝大事なところ。
@@ -110,9 +112,11 @@ GEM_INSTRUCTIONS = f"""あなたは、姿勢改善・ダイエットの専門家
 {STYLE}"""
 
 
-def write_batch(mod):
+def write_batch(mod, only=None, suffix=""):
     days = {}
     for item in mod.POSTS:
+        if only and item["id"] not in only:
+            continue
         days.setdefault(item["at"][:10], []).append(item)
     md = [
         f"# Gemini まとめ依頼（{mod.WEEK}）",
@@ -141,10 +145,11 @@ def write_batch(mod):
         title = when(items[0]["at"]).split("）")[0] + "）"
         md += ["---", "", f"## {title}　" + " / ".join(f"{i['id']} {i['theme']}" for i in items), "", "```"]
         md.append(f"次の{len(items)}枚を、1枚ずつ順番に作ってください。まず1枚目だけを作って止まってください。")
+        md.append("画像に書く文字は「」で囲んだ文章だけです。視点・筋肉の位置の説明・理由の文章は、画像に書かないでください。")
         for n, item in enumerate(items, 1):
             md += ["", f"■■■■■■■■ {n}枚目（{item['id']}）■■■■■■■■", "", spec(item["img"])]
         md += ["```", ""]
-    out = ROOT / f"Geminiまとめ依頼_{mod.WEEK}.md"
+    out = ROOT / f"Geminiまとめ依頼_{mod.WEEK}{suffix}.md"
     out.write_text("\n".join(md), encoding="utf-8")
     print(f"{out.name} を作成しました")
 
@@ -155,7 +160,9 @@ def when(at):
 
 
 def main():
-    week_key = sys.argv[1] if len(sys.argv) > 1 else "week1"
+    args = [a for a in sys.argv[1:] if not a.startswith("--only=")]
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv[1:] if a.startswith("--only=")), None)
+    week_key = args[0] if args else "week1"
     spec = importlib.util.spec_from_file_location(week_key, ROOT / "content" / f"{week_key}.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -211,6 +218,8 @@ def main():
         md += ["**画像プロンプト**", "", "```", prompt(item["img"]), "```", ""]
 
     write_batch(mod)
+    if only:
+        write_batch(mod, only, "_作り直し")
     posts.sort(key=lambda p: p["scheduled_at"])
     POSTS_FILE.write_text(json.dumps(posts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     out = ROOT / f"画像プロンプト_{mod.WEEK}.md"
