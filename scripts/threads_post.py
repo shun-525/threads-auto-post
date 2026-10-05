@@ -167,9 +167,9 @@ def main():
             post["reply_id"] = publish(user_id, token, post["reply"], reply_to=post_id)
             print(f"[{post['id']}] 返信を付けました")
     except Exception as e:
-        if post["status"] != "posted":
-            post["status"] = "failed"
-        post["error"] = str(e)
+        # 本投稿前の失敗は approved のまま残し、次の実行（15分後）で再挑戦する。
+        # 予定から3時間を過ぎれば late になるので、無限には繰り返さない。
+        post["error"] = f"{datetime.now(JST):%m/%d %H:%M} {e}"
         save(posts)
         sys.exit(f"[{post['id']}] {e}")
 
