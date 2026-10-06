@@ -1,0 +1,14 @@
+name: Threads 反応レポート
+
+# 投稿済みの閲覧数・いいね数などを一覧表示する（手動で実行）
+on:
+  workflow_dispatch: {}
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+        run: python3 scripts/insights.py | tee -a "$GITHUB_STEP_SUMMARY"
