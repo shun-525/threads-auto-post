@@ -163,7 +163,8 @@
     "status": "approved",
     "theme": "反り腰 × 腰のだるさ",
     "image": "images/016.jpg",
-    "text": "立っているだけで、腰がだるくなる。\nそれ、反り腰が原因かもしれません。\n\n骨盤が前に傾く（反り腰）\n　↓\n背骨の両側にある腰の筋肉が、縮んだまま緊張し続ける\n　↓\nお腹の筋肉は引き伸ばされて、腰を支えにくい\n　↓\n腰がだるくなりやすい\n\n腰をもんでもすぐ戻るのは、骨盤の傾きがそのままだから。\nまずは骨盤をまっすぐに戻すことから始めましょう😌\n\n強い痛みやしびれがある方は、自己判断せず専門機関へ🙏"
+    "text": "立っているだけで、腰がだるくなる。\nそれ、反り腰が原因かもしれません。\n\n骨盤が前に傾く（反り腰）\n　↓\n背骨の両側にある腰の筋肉が、縮んだまま緊張し続ける\n　↓\nお腹の筋肉は引き伸ばされて、腰を支えにくい\n　↓\n腰がだるくなりやすい\n\n腰をもんでもすぐ戻るのは、骨盤の傾きがそのままだから。\nまずは骨盤をまっすぐに戻すことから始めましょう😌\n\n強い痛みやしびれがある方は、自己判断せず専門機関へ🙏",
+    "error": "10/09 20:07 Threads API エラー 400: {\"error\":{\"message\":\"The requested resource does not exist\",\"type\":\"OAuthException\",\"code\":24,\"error_subcode\":4279009,\"is_transient\":false,\"error_user_title\":\"Media Not Found\",\"error_user_msg\":\"The media with id 17917897164451032 cannot be found.\",\"fbtrace_id\":\"A97CxUlkuGYWv4hVTxYawL_\"}}"
   },
   {
     "id": "017",
