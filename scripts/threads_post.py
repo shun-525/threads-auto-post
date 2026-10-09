@@ -48,9 +48,17 @@ def api(method, path, params):
 
 
 def wait_until_ready(container_id, token):
-    # 画像はThreads側の処理が終わるまで公開できない
-    for _ in range(20):
-        status = api("GET", container_id, {"fields": "status,error_message", "access_token": token})
+    # 画像はThreads側の処理が終わるまで公開できない。
+    # 作成直後はコンテナがまだ見つからない（Media Not Found）ことがあるので、少し待ってから確認する
+    time.sleep(5)
+    for i in range(20):
+        try:
+            status = api("GET", container_id, {"fields": "status,error_message", "access_token": token})
+        except RuntimeError as e:
+            if "Media Not Found" in str(e) and i < 6:
+                time.sleep(5)
+                continue
+            raise
         if status.get("status") == "FINISHED":
             return
         if status.get("status") in ("ERROR", "EXPIRED"):
