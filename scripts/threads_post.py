@@ -95,6 +95,9 @@ def validate(post):
         problems.append(f"本文が{len(post['text'])}文字（上限{MAX_TEXT}）")
     if post.get("reply") and len(post["reply"]) > MAX_TEXT:
         problems.append("返信が500文字を超えています")
+    for n, t in enumerate(post.get("thread", []), 1):
+        if len(t) > MAX_TEXT:
+            problems.append(f"続き{n}が{len(t)}文字（上限{MAX_TEXT}）")
     if post.get("image") and not (ROOT / post["image"]).exists():
         problems.append(f"画像ファイルがありません: {post['image']}")
     return problems
@@ -169,6 +172,14 @@ def main():
         post["threads_id"] = post_id
         post.pop("error", None)
         print(f"[{post['id']}] 投稿しました (threads id {post_id})")
+
+        # 文章スレッド：続きを1つ前の投稿への返信として順番につなげる
+        prev = post_id
+        for n, t in enumerate(post.get("thread", []), 1):
+            time.sleep(10)  # 1つ前の投稿が反映されてから返信する
+            prev = publish(user_id, token, t, reply_to=prev)
+            post.setdefault("thread_ids", []).append(prev)
+            print(f"[{post['id']}] 続き{n}を投稿しました")
 
         if post.get("reply"):
             time.sleep(10)  # 本投稿が反映されてから返信する

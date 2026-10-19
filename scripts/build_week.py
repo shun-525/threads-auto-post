@@ -117,7 +117,8 @@ def write_batch(mod, only=None, suffix=""):
     for item in mod.POSTS:
         if only and item["id"] not in only:
             continue
-        days.setdefault(item["at"][:10], []).append(item)
+        if item.get("img"):
+            days.setdefault(item["at"][:10], []).append(item)
     md = [
         f"# Gemini まとめ依頼（{mod.WEEK}）",
         "",
@@ -181,6 +182,9 @@ def main():
         text = item["text"] + (LINE_CTA if item.get("line") else "")
         if len(text) > 500:
             sys.exit(f"{item['id']} の本文が {len(text)} 文字です（上限500）")
+        for n, part in enumerate(item.get("thread", []), 1):
+            if len(part) > 500:
+                sys.exit(f"{item['id']} の続き{n}が {len(part)} 文字です（上限500）")
         existing = by_id.get(item["id"])
         if existing and existing["status"] != "draft":
             print(f"{item['id']} は {existing['status']} のため変更しません")
@@ -190,9 +194,12 @@ def main():
                 "scheduled_at": item["at"] + ":00+09:00",
                 "status": "draft",
                 "theme": item["theme"],
-                "image": f"images/{item['id']}.jpg",
                 "text": text,
             }
+            if item.get("img"):
+                entry["image"] = f"images/{item['id']}.jpg"
+            if item.get("thread"):
+                entry["thread"] = item["thread"]
             if item.get("line"):
                 entry["reply"] = LINE_REPLY
             if existing:
@@ -204,7 +211,7 @@ def main():
         md += [
             "---",
             "",
-            f"## {item['id']}｜{when(item['at'])}｜{item['theme']}" + ("　🎁LINE誘導あり" if item.get("line") else ""),
+            f"## {item['id']}｜{when(item['at'])}｜{item['theme']}" + ("　🎁LINE誘導あり" if item.get("line") else "") + ("　📝文章スレッド" if item.get("thread") else ""),
             "",
             "**本文**",
             "",
@@ -215,7 +222,12 @@ def main():
         ]
         if item.get("line"):
             md += ["**自動で付ける返信**", "", "```", LINE_REPLY, "```", ""]
-        md += ["**画像プロンプト**", "", "```", prompt(item["img"]), "```", ""]
+        for n, part in enumerate(item.get("thread", []), 1):
+            md += [f"**続き{n}（返信としてつなげる）**", "", "```", part, "```", ""]
+        if item.get("img"):
+            md += ["**画像プロンプト**", "", "```", prompt(item["img"]), "```", ""]
+        else:
+            md += ["（文章だけの投稿です。画像は不要です）", ""]
 
     write_batch(mod)
     if only:
