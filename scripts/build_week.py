@@ -137,22 +137,59 @@ def write_batch(mod, only=None, suffix=""):
         "1. 作った Gem「スレッズ画像メーカー」を開く",
         "2. 下の「1日分」の枠をまるごと貼り付けて送信 → 1枚目ができる",
         "3. 「次」と送る → 2枚目、もう一度「次」→ 3枚目",
-        "4. 1枚できるごとにダウンロードボタンで保存し、`images` フォルダに番号の名前で入れる",
+        "4. 1枚できるごとにダウンロードボタンで保存し、各日の下に書いた「保存名」で入れる"
+        + (f"（`images/{mod.WEEK}` フォルダに `01.jpg` から順番に）" if hasattr(mod, "WEEK_NO") else "（`images` フォルダ）"),
         "",
         "※ 直したいところがあれば、「次」の代わりに「〇〇を直して」と送ってください。",
         "",
     ]
     for day, items in days.items():
         title = when(items[0]["at"]).split("）")[0] + "）"
-        md += ["---", "", f"## {title}　" + " / ".join(f"{i['id']} {i['theme']}" for i in items), "", "```"]
+        md += ["---", "", f"## {title}　" + " / ".join(f"{i.get('label', i['id'])} {i['theme']}" for i in items), "", "```"]
         md.append(f"次の{len(items)}枚を、1枚ずつ順番に作ってください。まず1枚目だけを作って止まってください。")
         md.append("画像に書く文字は「」で囲んだ文章だけです。視点・筋肉の位置の説明・理由の文章は、画像に書かないでください。")
         for n, item in enumerate(items, 1):
-            md += ["", f"■■■■■■■■ {n}枚目（{item['id']}）■■■■■■■■", "", spec(item["img"])]
+            save = f"{item['image_path'].split('/')[-1]}" if item.get("image_path") else f"{item['id']}.jpg"
+            md += ["", f"■■■■■■■■ {n}枚目（{item.get('label', item['id'])}）■■■■■■■■", "", spec(item["img"])]
+            item["_save"] = save
         md += ["```", ""]
+        md += ["保存名：" + "、".join(f"{i.get('label', i['id'])} → `{i['_save']}`" for i in items), ""]
     out = ROOT / f"Geminiまとめ依頼_{mod.WEEK}{suffix}.md"
     out.write_text("\n".join(md), encoding="utf-8")
     print(f"{out.name} を作成しました")
+
+
+def write_threads(mod):
+    """文章スレッドだけを読みやすくまとめた確認用ファイルを作る。"""
+    items = [i for i in mod.POSTS if i.get("thread")]
+    if not items:
+        return
+    md = [f"# 文章スレッド（{mod.WEEK}）", "",
+          "①が最初の投稿、②〜④は返信として自動でつながります。直したいところは「文章03の②の3行目を〇〇に」のように教えてください。", ""]
+    for item in sorted(items, key=lambda i: i["at"]):
+        md += ["---", "", f"## {item.get('label', item['id'])}｜{when(item['at'])}｜{item['theme'].replace('📝 ', '')}", ""]
+        for n, part in enumerate([item["text"]] + item["thread"]):
+            md += [f"**{'①②③④⑤⑥'[n]}{' 最初の投稿' if n == 0 else ' 返信'}**", ""]
+            md += ["> " + line if line else ">" for line in part.split("\n")] + [""]
+    out = ROOT / f"文章スレッド_{mod.WEEK}.md"
+    out.write_text("\n".join(md), encoding="utf-8")
+    print(f"{out.name} を作成しました")
+
+
+def assign_numbers(mod):
+    """第4週から：id が無い投稿に、画像・文章それぞれ投稿順の通し番号を付ける。
+    画像は images/<週名>/01.jpg のように保存する。"""
+    counts = {"画像": 0, "文章": 0}
+    for item in sorted(mod.POSTS, key=lambda i: i["at"]):
+        if "id" in item:
+            continue
+        kind = "画像" if item.get("img") else "文章"
+        counts[kind] += 1
+        n = f"{counts[kind]:02d}"
+        item["id"] = f"{mod.WEEK_NO}-{kind}{n}"
+        item["label"] = f"{kind}{n}"
+        if kind == "画像":
+            item["image_path"] = f"images/{mod.WEEK}/{n}.jpg"
 
 
 def when(at):
@@ -167,6 +204,7 @@ def main():
     spec = importlib.util.spec_from_file_location(week_key, ROOT / "content" / f"{week_key}.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    assign_numbers(mod)
 
     posts = json.loads(POSTS_FILE.read_text(encoding="utf-8"))
     by_id = {p["id"]: p for p in posts}
@@ -197,7 +235,7 @@ def main():
                 "text": text,
             }
             if item.get("img"):
-                entry["image"] = f"images/{item['id']}.jpg"
+                entry["image"] = item.get("image_path", f"images/{item['id']}.jpg")
             if item.get("thread"):
                 entry["thread"] = item["thread"]
             if item.get("line"):
@@ -211,7 +249,7 @@ def main():
         md += [
             "---",
             "",
-            f"## {item['id']}｜{when(item['at'])}｜{item['theme']}" + ("　🎁LINE誘導あり" if item.get("line") else "") + ("　📝文章スレッド" if item.get("thread") else ""),
+            f"## {item.get('label', item['id'])}｜{when(item['at'])}｜{item['theme']}" + ("　🎁LINE誘導あり" if item.get("line") else "") + ("　📝文章スレッド" if item.get("thread") else ""),
             "",
             "**本文**",
             "",
@@ -230,6 +268,7 @@ def main():
             md += ["（文章だけの投稿です。画像は不要です）", ""]
 
     write_batch(mod)
+    write_threads(mod)
     if only:
         write_batch(mod, only, "_作り直し")
     posts.sort(key=lambda p: p["scheduled_at"])
