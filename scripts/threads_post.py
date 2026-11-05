@@ -129,19 +129,20 @@ def main():
         key=lambda p: p["scheduled_at"],
     )
 
-    changed = False
+    late = []
     for p in due:
         if now - datetime.fromisoformat(p["scheduled_at"]) > LATE_LIMIT:
             p["status"] = "late"
             p["error"] = f"{now:%m/%d %H:%M} 時点で予定から3時間以上過ぎたため投稿を見送り"
             print(f"[{p['id']}] 予定時刻を大きく過ぎたため見送り")
-            changed = True
+            late.append(p["id"])
     due = [p for p in due if p["status"] == "approved"]
 
     if not due:
         print("投稿する予定のものはありません")
-        if changed:
+        if late:
             save(posts)
+            sys.exit(f"見送りが出ました: {', '.join(late)}")  # 失敗メールで気づけるようにする
         return
 
     post = due[0]  # 1回の実行で投稿するのは1件だけ（連投防止）
@@ -193,6 +194,8 @@ def main():
         sys.exit(f"[{post['id']}] {e}")
 
     save(posts)
+    if late:
+        sys.exit(f"見送りが出ました: {', '.join(late)}")  # 失敗メールで気づけるようにする
 
 
 if __name__ == "__main__":
