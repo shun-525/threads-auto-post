@@ -29,7 +29,7 @@ POSTS_FILE = ROOT / "posts.json"
 JST = timezone(timedelta(hours=9))
 MAX_TEXT = 500
 # これより古い未投稿は、まとめて連投しないよう「late」にして人の判断に回す
-LATE_LIMIT = timedelta(hours=3)
+LATE_LIMIT = timedelta(hours=4)
 
 
 def api(method, path, params):
@@ -133,7 +133,7 @@ def main():
     for p in due:
         if now - datetime.fromisoformat(p["scheduled_at"]) > LATE_LIMIT:
             p["status"] = "late"
-            p["error"] = f"{now:%m/%d %H:%M} 時点で予定から3時間以上過ぎたため投稿を見送り"
+            p["error"] = f"{now:%m/%d %H:%M} 時点で予定から4時間以上過ぎたため投稿を見送り"
             print(f"[{p['id']}] 予定時刻を大きく過ぎたため見送り")
             late.append(p["id"])
     due = [p for p in due if p["status"] == "approved"]
@@ -188,7 +188,7 @@ def main():
             print(f"[{post['id']}] 返信を付けました")
     except Exception as e:
         # 本投稿前の失敗は approved のまま残し、次の実行（15分後）で再挑戦する。
-        # 予定から3時間を過ぎれば late になるので、無限には繰り返さない。
+        # 予定から4時間を過ぎれば late になるので、無限には繰り返さない。
         post["error"] = f"{datetime.now(JST):%m/%d %H:%M} {e}"
         save(posts)
         sys.exit(f"[{post['id']}] {e}")
