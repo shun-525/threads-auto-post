@@ -1,0 +1,26 @@
+name: 毎日の投稿レポート
+
+# 毎朝（日本時間 8:30 ごろ）、前日分の投稿結果を Issue にまとめる。
+# Issue ができるとメールで届く。GitHub の混み具合で数時間遅れることがある。
+on:
+  schedule:
+    - cron: "30 23 * * *"
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "対象日（例 2026-11-16）。空なら前日"
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+        run: python3 scripts/daily_report.py ${{ inputs.day }}
